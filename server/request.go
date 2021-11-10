@@ -4,78 +4,74 @@ import (
 	"encoding/base64"
 
 	e "github.com/inda21plusplus/mathm-ollejer-crypto-server/server/errors"
-	"github.com/inda21plusplus/mathm-ollejer-crypto-server/server/merkel"
+	"github.com/inda21plusplus/mathm-ollejer-crypto-server/server/merkle"
 )
 
 type Request struct {
 	Kind    string `json:"type"`
 	IDB64   string `json:"id"`
-	DataB64 string `json:"data"`
 	SigB64  string `json:"signature"`
+	DataB64 string `json:"data"`
+}
+
+func b64(src []byte) string {
+	return base64.StdEncoding.EncodeToString(src)
+}
+
+func b64d(s string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(s)
 }
 
 func (req *Request) Handle(c *Client) interface{} {
 	switch req.Kind {
 	case "list":
-		ids := merkel.GlobalTree.GetIDs()
-		res := struct {
-			IDs []string `json:"ids"`
-		}{
-			make([]string, 0, len(ids)),
+		ids := merkle.GlobalTree.GetIDs()
+		return map[string][]string{
+			"ids": ids,
 		}
-		for _, id := range ids {
-			res.IDs = append(res.IDs, base64.StdEncoding.EncodeToString(id))
-		}
-		return res
 	case "read":
-		if req.IDB64 == "" {
+		if len(req.IDB64) == 0 {
 			return e.MissingParam("id")
 		}
-		id, err := base64.StdEncoding.DecodeString(req.IDB64)
-		if err != nil {
-			return e.BadRequest(err)
-		}
-		data, sig, hashes, err := merkel.GlobalTree.ReadFile(id)
+		sig, data, hashes, err := merkle.GlobalTree.ReadFile(req.IDB64)
 		if err != nil {
 			return err
 		}
 		res := struct {
-			Data   string   `json:"data"`
-			Sig    string   `json:"signature"`
-			Hashes []string `json:"hashes"`
+			Sig        string                  `json:"signature"`
+			Data       string                  `json:"data"`
+			Validation []merkle.HashValidation `json:"validation"`
 		}{
-			base64.StdEncoding.EncodeToString(data),
-			base64.StdEncoding.EncodeToString(sig),
-			make([]string, 0, len(hashes)),
+			string(sig),
+			b64(data),
+			make([]merkle.HashValidation, 0, len(hashes)),
 		}
 		for _, hash := range hashes {
-			res.Hashes = append(res.Hashes, base64.StdEncoding.EncodeToString(hash))
+			res.Validation = append(res.Validation, hash)
 		}
 		return res
 	case "write":
-		id, err := base64.StdEncoding.DecodeString(req.IDB64)
+		if len(req.IDB64) == 0 {
+			return e.MissingParam("id")
+		}
+		if len(req.SigB64) == 0 {
+			return e.MissingParam("signature")
+		}
+		data, err := b64d(req.DataB64)
 		if err != nil {
 			return e.BadRequest(err)
 		}
-		data, err := base64.StdEncoding.DecodeString(req.DataB64)
-		if err != nil {
-			return e.BadRequest(err)
-		}
-		sig, err := base64.StdEncoding.DecodeString(req.SigB64)
-		if err != nil {
-			return e.BadRequest(err)
-		}
-		hashes, err := merkel.GlobalTree.WriteFile(id, data, sig)
+		hashes, err := merkle.GlobalTree.WriteFile(req.IDB64, req.SigB64, data)
 		if err != nil {
 			return err
 		}
 		res := struct {
-			Hashes []string `json:"hashes"`
+			Validation []merkle.HashValidation `json:"validation"`
 		}{
-			make([]string, 0, len(hashes)),
+			make([]merkle.HashValidation, 0, len(hashes)),
 		}
 		for _, hash := range hashes {
-			res.Hashes = append(res.Hashes, base64.RawStdEncoding.EncodeToString(hash))
+			res.Validation = append(res.Validation, hash)
 		}
 		return res
 	}

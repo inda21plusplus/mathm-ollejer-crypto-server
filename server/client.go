@@ -8,6 +8,7 @@ import (
 	"net"
 
 	e "github.com/inda21plusplus/mathm-ollejer-crypto-server/server/errors"
+	"github.com/inda21plusplus/mathm-ollejer-crypto-server/server/merkle"
 )
 
 type Client struct {
@@ -36,6 +37,10 @@ func (c *Client) Run() {
 			fmt.Println(err)
 			break
 		}
+		merkle.GlobalTree.Print()
+		fmt.Println()
+		fmt.Println()
+		fmt.Println()
 	}
 
 	if err := c.Conn.Close(); err != nil {
