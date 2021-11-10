@@ -25,9 +25,18 @@ func NewClient(conn net.Conn) *Client {
 	}
 }
 
-func (c *Client) Start() {
+func (c *Client) Handle() {
 	go c.sendData()
 	go c.readData()
+	for req := range c.In {
+		req.Handle(c)
+	}
+	close(c.Out)
+
+	c.Wg.Wait()
+	if err := c.Conn.Close(); err != nil {
+		fmt.Println("Error while closing connection:", err)
+	}
 }
 
 func (c *Client) readData() {
@@ -35,27 +44,28 @@ func (c *Client) readData() {
 	defer c.Wg.Done()
 	decoder := json.NewDecoder(c.Conn)
 	for {
-		var req Request
-		if err := decoder.Decode(&req); err != nil {
+		var rawReq rawRequest
+		if err := decoder.Decode(&rawReq); err != nil {
 			if !errors.Is(err, io.EOF) {
-				c.Out <- map[string]string{
-					"error": "bad-request",
-				}
+				c.Out <- BadRequest(err)
 			}
 			close(c.In)
 			return
 		}
-		c.In <- req
+
+		req, err := rawReq.toRequest()
+		if err != nil {
+			c.Out <- err
+		} else {
+			c.In <- req
+		}
 	}
 }
 
 func (c *Client) sendData() {
 	c.Wg.Add(1)
 	defer c.Wg.Done()
-	encoder := json.NewEncoder(c.Conn)
 	for res := range c.Out {
-		if err := encoder.Encode(res); err != nil {
-			fmt.Println("Error while sending data", err)
-		}
+		res.Respond(c)
 	}
 }

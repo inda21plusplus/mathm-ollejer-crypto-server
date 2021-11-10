@@ -23,8 +23,6 @@ func main() {
 			fmt.Println("Error accepting connection", err)
 		}
 
-		client := server.NewClient(conn)
-		client.Start()
-		client.Handle()
+		go server.NewClient(conn).Handle()
 	}
 }
