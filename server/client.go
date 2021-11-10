@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+
+	e "github.com/inda21plusplus/mathm-ollejer-crypto-server/server/errors"
 )
 
 type Client struct {
@@ -20,17 +22,18 @@ func NewClient(conn net.Conn) *Client {
 
 func (c *Client) Run() {
 	decoder := json.NewDecoder(c.Conn)
+	encoder := json.NewEncoder(c.Conn)
 	for {
 		var req Request
 		if err := decoder.Decode(&req); err != nil {
 			if !errors.Is(err, io.EOF) {
-				panic(err)
+				encoder.Encode(e.BadRequest(err))
 			}
 			break
 		}
 		res := req.Handle(c)
-		if err := json.NewEncoder(c.Conn).Encode(res); err != nil {
-			panic(err)
+		if err := encoder.Encode(res); err != nil {
+			fmt.Println(err)
 			break
 		}
 	}
