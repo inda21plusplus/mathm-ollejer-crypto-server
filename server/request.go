@@ -16,7 +16,21 @@ type Request struct {
 
 func (req *Request) Handle(c *Client) interface{} {
 	switch req.Kind {
+	case "list":
+		ids := merkel.GlobalTree.GetIDs()
+		res := struct {
+			IDs []string `json:"ids"`
+		}{
+			make([]string, 0, len(ids)),
+		}
+		for _, id := range ids {
+			res.IDs = append(res.IDs, base64.StdEncoding.EncodeToString(id))
+		}
+		return res
 	case "read":
+		if req.IDB64 == "" {
+			return e.MissingParam("id")
+		}
 		id, err := base64.StdEncoding.DecodeString(req.IDB64)
 		if err != nil {
 			return e.BadRequest(err)

@@ -13,6 +13,62 @@ type Tree struct {
 	lookup map[string]uint64
 }
 
+type Node interface {
+	GetHash() Hash
+}
+
+type BranchNode struct {
+	Hash  Hash
+	Left  Node
+	Right Node
+}
+
+func (node *BranchNode) GetHash() Hash {
+	return node.Hash
+}
+
+type LeafNode struct {
+	Sig      Hash
+	FileData []byte
+}
+
+func (node *LeafNode) GetHash() Hash {
+	return node.Sig
+}
+
+func (t *Tree) GetIDs() [][]byte {
+	ids := make([][]byte, 0, len(t.lookup))
+	for id := range t.lookup {
+		ids = append(ids, []byte(id))
+	}
+	return ids
+}
+
+func (t *Tree) ReadFile(id []byte) (data []byte, sig Hash, hashes []Hash, err error) {
+	var leaf *LeafNode
+	leaf, hashes, err = t.traverseTo(id)
+	if err != nil {
+		return
+	}
+
+	data = leaf.FileData
+	sig = leaf.Sig
+	return
+}
+
+func (t *Tree) WriteFile(id []byte, data []byte, sig Hash) (hashes []Hash, err error) {
+	var leaf *LeafNode
+	leaf, hashes, err = t.traverseTo(id)
+	if err != nil {
+		return
+	}
+
+	leaf.FileData = data
+	leaf.Sig = sig
+
+	return
+}
+
 func (t *Tree) traverseTo(id []byte) (leaf *LeafNode, hashes []Hash, err error) {
 	branches, ok := t.lookup[string(id)]
 	if !ok {
@@ -43,52 +99,4 @@ func (t *Tree) traverseTo(id []byte) (leaf *LeafNode, hashes []Hash, err error) 
 	}
 
 	return
-}
-
-func (t *Tree) ReadFile(id []byte) (data []byte, sig Hash, hashes []Hash, err error) {
-	var leaf *LeafNode
-	leaf, hashes, err = t.traverseTo(id)
-	if err != nil {
-		return
-	}
-
-	data = leaf.FileData
-	sig = leaf.Sig
-	return
-}
-
-func (t *Tree) WriteFile(id []byte, data []byte, sig Hash) (hashes []Hash, err error) {
-	var leaf *LeafNode
-	leaf, hashes, err = t.traverseTo(id)
-	if err != nil {
-		return
-	}
-
-	leaf.FileData = data
-	leaf.Sig = sig
-
-	return
-}
-
-type Node interface {
-	GetHash() Hash
-}
-
-type BranchNode struct {
-	Hash  Hash
-	Left  Node
-	Right Node
-}
-
-func (node *BranchNode) GetHash() Hash {
-	return node.Hash
-}
-
-type LeafNode struct {
-	Sig      Hash
-	FileData []byte
-}
-
-func (node *LeafNode) GetHash() Hash {
-	return node.Sig
 }

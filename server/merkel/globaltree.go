@@ -1,6 +1,10 @@
 package merkel
 
-import "crypto/sha256"
+import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+)
 
 var GlobalTree = generateTree()
 
@@ -12,20 +16,34 @@ func generateTree() *Tree {
 
 func genNode(depth uint) (Node, map[string]uint64) {
 	if depth == 0 {
-		return genLeafNode(), nil
+		node, id := genLeafNode()
+		m := map[string]uint64{
+			id: 0,
+		}
+		return node, m
 	} else {
 		return genBranchNode(depth)
 	}
 }
 
-func genLeafNode() *LeafNode {
-	sig := sha256.Sum256([]byte("hej"))
-	Sig := make([]byte, sha256.Size)
-	copy(Sig[:], sig[:])
-	return &LeafNode{
-		Sig:      Hash(string(Sig)),
-		FileData: []byte("hej"),
+func genLeafNode() (*LeafNode, string) {
+	data := make([]byte, 20)
+	if _, err := rand.Read(data); err != nil {
+		panic(err)
 	}
+	hm := hmac.New(sha256.New, []byte("secretcode"))
+	if _, err := hm.Write(data); err != nil {
+		panic(err)
+	}
+	sig := hm.Sum([]byte{})
+	id := make([]byte, 18)
+	if _, err := rand.Read(id); err != nil {
+		panic(err)
+	}
+	return &LeafNode{
+		Sig:      Hash(sig),
+		FileData: data,
+	}, string(id)
 }
 
 func genBranchNode(depth uint) (*BranchNode, map[string]uint64) {
@@ -36,7 +54,7 @@ func genBranchNode(depth uint) (*BranchNode, map[string]uint64) {
 		m[key] = val << 1
 	}
 	for key, val := range rightMap {
-		m[key] = (val << 1) & 1
+		m[key] = (val << 1) | 1
 	}
 	cat := append(left.GetHash(), right.GetHash()...)
 	hasher := sha256.New()
