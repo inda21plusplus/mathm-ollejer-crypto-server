@@ -38,9 +38,6 @@ func (c *Client) Run() {
 			break
 		}
 		merkle.GlobalTree.Print()
-		fmt.Println()
-		fmt.Println()
-		fmt.Println()
 	}
 
 	if err := c.Conn.Close(); err != nil {
