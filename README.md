@@ -20,7 +20,7 @@ Input:
 Output:
 ```json
 {
-    "ids": [base64string],
+    "ids": ["<base64data>"],
 }
 ```
 
@@ -30,18 +30,20 @@ Input:
 ```json
 {
     "type": "read",
-    "id": base64string,
+    "id": "<base64data>",
 }
 ```
 
 Output:
 ```json
 {
-    "data": base64string,
-    "signature": base64string,
-    "hashes": [base64string], // den här är baklänges atm. alltså att hasharna längst upp kommer först
+    "data": "<base64data>",
+    "signature": "<base64data>",
+    "hashes": ["<base64data>"],
 }
 ```
+
+`hashes` är baklänges. Alltså att hasharna längst upp kommer först.
 
 ### Write file
 
@@ -49,18 +51,20 @@ Input:
 ```json
 {
     "type": "write",
-    "id": base64string,
-    "data": base64string,
-    "signature": base64string,
+    "id": "<base64data>",
+    "data": "<base64data>",
+    "signature": "<base64data>",
 }
 ```
 
 Output:
 ```json
 {
-    "hashes": [base64string], // den här är också baklänges
+    "hashes": ["<base64data>"],
 }
 ```
+
+`hashes` är baklänges här också.
 
 ### Add file
 
