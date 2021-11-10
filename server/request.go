@@ -2,42 +2,68 @@ package server
 
 import (
 	"encoding/base64"
-	"github.com/inda21plusplus/mathm-ollejer-crypto-server/server/errors"
+
+	e "github.com/inda21plusplus/mathm-ollejer-crypto-server/server/errors"
+	"github.com/inda21plusplus/mathm-ollejer-crypto-server/server/merkel"
 )
 
-type rawRequest struct {
-	Kind    string `json:"type"` // read, write, insert, delete
+type Request struct {
+	Kind    string `json:"type"`
 	IDB64   string `json:"id"`
 	DataB64 string `json:"data"`
 	SigB64  string `json:"signature"`
 }
 
-type Request interface {
-	Handle(*Client)
-}
-
-func (r rawRequest) toRequest() (Request, *errors.Error) {
-	switch r.Kind {
+func (req *Request) Handle(c *Client) interface{} {
+	switch req.Kind {
 	case "read":
-		id, err := base64.StdEncoding.DecodeString(r.IDB64)
+		id, err := base64.StdEncoding.DecodeString(req.IDB64)
 		if err != nil {
-			return nil, errors.BadRequest(err)
+			return e.BadRequest(err)
 		}
-		return ReadFileRequest{id}, nil
+		data, sig, hashes, err := merkel.GlobalTree.ReadFile(id)
+		if err != nil {
+			return err
+		}
+		res := struct {
+			Data   string   `json:"data"`
+			Sig    string   `json:"signature"`
+			Hashes []string `json:"hashes"`
+		}{
+			base64.StdEncoding.EncodeToString(data),
+			base64.StdEncoding.EncodeToString(sig),
+			make([]string, 0, len(hashes)),
+		}
+		for _, hash := range hashes {
+			res.Hashes = append(res.Hashes, base64.StdEncoding.EncodeToString(hash))
+		}
+		return res
 	case "write":
-		id, err := base64.StdEncoding.DecodeString(r.IDB64)
+		id, err := base64.StdEncoding.DecodeString(req.IDB64)
 		if err != nil {
-			return nil, errors.BadRequest(err)
+			return e.BadRequest(err)
 		}
-		data, err := base64.StdEncoding.DecodeString(r.DataB64)
+		data, err := base64.StdEncoding.DecodeString(req.DataB64)
 		if err != nil {
-			return nil, errors.BadRequest(err)
+			return e.BadRequest(err)
 		}
-		sig, err := base64.StdEncoding.DecodeString(r.SigB64)
+		sig, err := base64.StdEncoding.DecodeString(req.SigB64)
 		if err != nil {
-			return nil, errors.BadRequest(err)
+			return e.BadRequest(err)
 		}
-		return WriteFileRequest{id, data, sig}, nil
+		hashes, err := merkel.GlobalTree.WriteFile(id, data, sig)
+		if err != nil {
+			return err
+		}
+		res := struct {
+			Hashes []string `json:"hashes"`
+		}{
+			make([]string, 0, len(hashes)),
+		}
+		for _, hash := range hashes {
+			res.Hashes = append(res.Hashes, base64.RawStdEncoding.EncodeToString(hash))
+		}
+		return res
 	}
-	return nil, errors.BadRequest(nil)
+	return e.BadRequest(nil)
 }

@@ -1,8 +1,8 @@
 package errors
 
 type Error struct {
-	Message string
-	Inner   error
+	Message string `json:"error"`
+	Cause   error  `json:"cause"`
 }
 
 func BadRequest(inner error) *Error { return &Error{"Bad request", inner} }
