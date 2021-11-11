@@ -4,7 +4,6 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"fmt"
 )
 
 var GlobalTree = genTree()
@@ -12,26 +11,24 @@ var GlobalTree = genTree()
 func genTree() *Tree {
 	root := genNode(2)
 
-	lookup := genMap(root, []bool{})
-	fmt.Println(lookup)
+	lookup := make(map[string][]bool)
+	genMap(root, make([]bool, 0), lookup)
 
 	return &Tree{root, lookup}
 }
 
-func genMap(node *Node, traversion []bool) map[string][]bool {
+func genMap(node *Node, traversion []bool, lookup map[string][]bool) {
 	if node.IsLeaf() {
-		return map[string][]bool{node.ID: traversion}
+		lookup[node.ID] = traversion
 	} else {
-		m := make(map[string][]bool)
-		for id, val := range genMap(node.Left, append(traversion, Left)) {
-			fmt.Println(traversion, id, val)
-			m[id] = val
-		}
-		for id, val := range genMap(node.Right, append(traversion, Right)) {
-			fmt.Println(traversion, id, val)
-			m[id] = val
-		}
-		return m
+		l := make([]bool, len(traversion))
+		copy(l, traversion)
+		l = append(l, Left)
+		genMap(node.Left, l, lookup)
+		r := make([]bool, len(traversion))
+		copy(r, traversion)
+		r = append(r, Right)
+		genMap(node.Right, r, lookup)
 	}
 }
 

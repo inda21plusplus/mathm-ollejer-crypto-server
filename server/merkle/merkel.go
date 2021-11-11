@@ -148,7 +148,11 @@ func (t *Tree) createFile(id string, sig string, data []byte) (*Node, []HashVali
 	newLeaf := LeafNode(id, sig, data)
 
 	branch := BranchNode(newLeaf, *node)
-	t.traversion_lookup[newLeaf.ID] = append(t.traversion_lookup[(*node).ID], Left)
+
+	t.traversion_lookup[newLeaf.ID] = make([]bool, len(t.traversion_lookup[(*node).ID]))
+	copy(t.traversion_lookup[newLeaf.ID], t.traversion_lookup[(*node).ID])
+	t.traversion_lookup[newLeaf.ID] = append(t.traversion_lookup[newLeaf.ID], Left)
+
 	t.traversion_lookup[(*node).ID] = append(t.traversion_lookup[(*node).ID], Right)
 
 	*node = branch
