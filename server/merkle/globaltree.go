@@ -6,7 +6,10 @@ import (
 	"crypto/sha256"
 )
 
-var GlobalTree = genTree()
+var GlobalTree *Tree = &Tree{
+	root: nil,
+	traversion_lookup: make(map[string][]bool),
+}
 
 func genTree() *Tree {
 	root := genNode(2)

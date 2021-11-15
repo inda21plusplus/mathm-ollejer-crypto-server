@@ -41,7 +41,7 @@ type Tree struct {
 }
 
 type Node struct {
-	ID       string // is "" unless this is a leaf
+	ID       string // is empty unless this is a leaf
 	Hash     string // is signature of file if this is a leaf
 	Left     *Node  // nil if this is a leaf
 	Right    *Node  // nil if this is a leaf
@@ -50,6 +50,9 @@ type Node struct {
 }
 
 func (t *Tree) Print() {
+	if t.root == nil {
+		return
+	}
 	fmt.Print("\n\n")
 	for key, val := range t.traversion_lookup {
 		fmt.Printf("%v: %v\n", key, val)
@@ -128,6 +131,12 @@ func (t *Tree) WriteFile(id string, sig string, data []byte) ([]HashValidation, 
 }
 
 func (t *Tree) createFile(id string, sig string, data []byte) (*Node, []HashValidation) {
+	if t.root == nil {
+		t.root = LeafNode(id, sig, data)
+		t.traversion_lookup[t.root.ID] = []bool{}
+		return t.root, []HashValidation{}
+	}
+
 	var node **Node = &t.root
 	var hashes []HashValidation
 
@@ -143,7 +152,7 @@ func (t *Tree) createFile(id string, sig string, data []byte) (*Node, []HashVali
 		}
 	}
 
-	hashes = append(hashes, HashValidation{(*node).Hash, Left})
+	hashes = append(hashes, HashValidation{(*node).Hash, Right})
 
 	newLeaf := LeafNode(id, sig, data)
 
