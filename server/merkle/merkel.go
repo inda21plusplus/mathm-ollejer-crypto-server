@@ -72,11 +72,13 @@ func (n *Node) Print(indent int) {
 	}
 }
 
-func BranchNode(left, right *Node) *Node {
+func BranchNode(left, right *Node) (*Node, error) {
 	h := sha256.New()
-	l, _ := b64d(string(left.Hash))
-	r, _ := b64d(string(right.Hash))
-	// TODO: handle errors here
+	l, errL := b64d(string(left.Hash));
+	r, errR := b64d(string(right.Hash))
+	if errL != nil || errR != nil {
+		return nil, errors.InvalidSignature()
+	}
 	h.Write(append(l, r...))
 	hash := b64(h.Sum([]byte{}))
 	return &Node{
@@ -86,7 +88,7 @@ func BranchNode(left, right *Node) *Node {
 		right,
 		nil,
 		1 + min(left.MinDepth, right.MinDepth),
-	}
+	}, nil
 }
 
 func LeafNode(id string, signature string, data []byte) *Node {
@@ -112,6 +114,11 @@ func (t *Tree) GetIDs() []string {
 	return ids
 }
 
+func (t *Tree) Exists(id string) bool {
+	_, ok := t.traversion_lookup[id]
+	return ok
+}
+
 func (t *Tree) ReadFile(id string) (string, []byte, []HashValidation, error) {
 	leaf, hashes := t.traverse(id)
 	if leaf == nil {
@@ -124,17 +131,21 @@ func (t *Tree) ReadFile(id string) (string, []byte, []HashValidation, error) {
 func (t *Tree) WriteFile(id string, sig string, data []byte) ([]HashValidation, error) {
 	leaf, hashes := t.traverse(id)
 	if leaf == nil {
-		leaf, hashes = t.createFile(id, sig, data)
+		var err error
+		leaf, hashes, err = t.createFile(id, sig, data)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return hashes, nil
 }
 
-func (t *Tree) createFile(id string, sig string, data []byte) (*Node, []HashValidation) {
+func (t *Tree) createFile(id string, sig string, data []byte) (*Node, []HashValidation, error) {
 	if t.root == nil {
 		t.root = LeafNode(id, sig, data)
 		t.traversion_lookup[t.root.ID] = []bool{}
-		return t.root, []HashValidation{}
+		return t.root, []HashValidation{}, nil
 	}
 
 	var node **Node = &t.root
@@ -152,11 +163,14 @@ func (t *Tree) createFile(id string, sig string, data []byte) (*Node, []HashVali
 		}
 	}
 
-	hashes = append(hashes, HashValidation{(*node).Hash, Right})
-
 	newLeaf := LeafNode(id, sig, data)
 
-	branch := BranchNode(newLeaf, *node)
+	branch, err := BranchNode(newLeaf, *node)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	hashes = append(hashes, HashValidation{(*node).Hash, Right})
 
 	t.traversion_lookup[newLeaf.ID] = make([]bool, len(t.traversion_lookup[(*node).ID]))
 	copy(t.traversion_lookup[newLeaf.ID], t.traversion_lookup[(*node).ID])
@@ -166,7 +180,7 @@ func (t *Tree) createFile(id string, sig string, data []byte) (*Node, []HashVali
 
 	*node = branch
 
-	return newLeaf, hashes
+	return newLeaf, hashes, nil
 }
 
 func (t *Tree) traverse(id string) (*Node, []HashValidation) {

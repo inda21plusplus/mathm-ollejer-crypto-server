@@ -64,5 +64,9 @@ func genLeafNode() *Node {
 func genBranchNode(depth uint) *Node {
 	left := genNode(depth - 1)
 	right := genNode(depth - 1)
-	return BranchNode(left, right)
+	node, err := BranchNode(left, right)
+	if err != nil {
+		panic(err)
+	}
+	return node
 }

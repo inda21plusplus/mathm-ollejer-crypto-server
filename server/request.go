@@ -29,6 +29,17 @@ func (req *Request) Handle(c *Client) interface{} {
 		return map[string][]string{
 			"ids": ids,
 		}
+	case "exists":
+		if len(req.IDB64) == 0 {
+			return e.MissingParam("id")
+		}
+		exists := merkle.GlobalTree.Exists(req.IDB64)
+		res := struct{
+			Exists bool `json:"exists"`
+		}{
+			exists,
+		}
+		return res
 	case "read":
 		if len(req.IDB64) == 0 {
 			return e.MissingParam("id")
