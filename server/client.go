@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,12 +12,16 @@ import (
 )
 
 type Client struct {
-	Conn net.Conn
+	Conn   net.Conn
+	DB     *sql.DB
+	TreeID string
 }
 
-func NewClient(conn net.Conn) *Client {
+func NewClient(conn net.Conn, db *sql.DB) *Client {
 	return &Client{
 		Conn: conn,
+		DB: db,
+		TreeID: "",
 	}
 }
 

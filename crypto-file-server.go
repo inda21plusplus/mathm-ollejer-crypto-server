@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"crypto/tls"
 
 	"github.com/inda21plusplus/mathm-ollejer-crypto-server/server"
 )
 
 func main() {
+	tls.Listen("tcp", ":10000", &tls.Config{})
 	listener, err := net.Listen("tcp", ":10000")
 	if err != nil {
 		fmt.Println("Error binding socket:", err)
