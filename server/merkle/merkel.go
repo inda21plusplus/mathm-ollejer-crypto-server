@@ -4,10 +4,24 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/inda21plusplus/mathm-ollejer-crypto-server/server/errors"
 )
+
+var trees = make(map[*big.Int]*Tree, 0)
+
+func GetTree(clientID *big.Int) *Tree {
+	_, ok := trees[clientID]
+	if !ok {
+		trees[clientID] = &Tree{
+			root: nil,
+			traversion_lookup: make(map[string][]bool),
+		}
+	}
+	return trees[clientID]
+}
 
 func b64(src []byte) string {
 	return base64.StdEncoding.EncodeToString(src)
@@ -101,9 +115,8 @@ func (n *Node) updateHash() {
 		return
 	}
 	h := sha256.New()
-	l, _ := b64d(string(n.Left.Hash));
-	r, _ := b64d(string(n.Right.Hash))
-	h.Write(append(l, r...))
+	h.Write([]byte(n.Left.Hash))
+	h.Write([]byte(n.Right.Hash))
 	n.Hash = b64(h.Sum([]byte{}))
 }
 

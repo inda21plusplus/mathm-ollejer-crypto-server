@@ -1,44 +1,92 @@
 package server
 
 import (
+	"bufio"
+	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
+	"strings"
 
-	e "github.com/inda21plusplus/mathm-ollejer-crypto-server/server/errors"
+	"golang.org/x/crypto/chacha20poly1305"
 )
 
 type Client struct {
-	Conn net.Conn
+	Conn       net.Conn
+	ID         *big.Int
+	Key        []byte
 }
 
-func NewClient(conn net.Conn) *Client {
+func NewClient(conn net.Conn, clientID *big.Int, key []byte) *Client {
 	return &Client{
-		Conn: conn,
+		conn,
+		clientID,
+		key,
 	}
 }
 
 func (c *Client) Run() {
-	decoder := json.NewDecoder(c.Conn)
-	encoder := json.NewEncoder(c.Conn)
+	defer c.Conn.Close()
+
+	cipher, err := chacha20poly1305.New(c.Key)
+	if err != nil { return }
+
+	reader := bufio.NewReader(c.Conn)
 	for {
 		var req Request
-		if err := decoder.Decode(&req); err != nil {
-			if !errors.Is(err, io.EOF) {
-				encoder.Encode(e.BadRequest(err))
+
+		{
+			payload, err := reader.ReadSlice('\n')
+			if err != nil {
+				if !errors.Is(err, io.EOF) {
+					fmt.Println(err)
+				}
+				break
 			}
-			break
+
+			split := strings.Split(strings.Trim(string(payload), "\n"), " ")
+			if len(split) != 2 { break }
+			nonce, err := b64d(split[0])
+			if err != nil { panic(err) }
+			ciphertext, err := b64d(split[1])
+			if err != nil { panic(err) }
+
+			data, err := cipher.Open([]byte{}, nonce, ciphertext, []byte{})
+			if err != nil {
+				fmt.Println("open", err)
+				break
+			}
+
+			if err := json.Unmarshal(data, &req); err != nil {
+				if !errors.Is(err, io.EOF) {
+					fmt.Println(err)
+				}
+				break
+			}
 		}
+
 		res := req.Handle(c)
-		if err := encoder.Encode(res); err != nil {
+		var plaintext bytes.Buffer
+		if err := json.NewEncoder(&plaintext).Encode(res); err != nil {
 			fmt.Println(err)
 			break
 		}
-	}
+		nonce := make([]byte, cipher.NonceSize())
+		_, err = rand.Read(nonce)
+		if err != nil {
+			break
+		}
+		data := cipher.Seal([]byte{}, nonce, plaintext.Bytes(), []byte{})
+		payload := []byte(fmt.Sprintf("%v %v\n", b64(nonce), b64(data)))
 
-	if err := c.Conn.Close(); err != nil {
-		fmt.Println("Error while closing connection:", err)
+		fmt.Println(string(payload))
+
+		n, err := c.Conn.Write(payload)
+		if err != nil { break }
+		if n != len(payload) { panic(n) }
 	}
 }

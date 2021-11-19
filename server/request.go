@@ -23,9 +23,10 @@ func b64d(s string) ([]byte, error) {
 }
 
 func (req *Request) Handle(c *Client) interface{} {
+	tree := merkle.GetTree(c.ID)
 	switch req.Kind {
 	case "list":
-		ids := merkle.GlobalTree.GetIDs()
+		ids := tree.GetIDs()
 		return map[string][]string{
 			"ids": ids,
 		}
@@ -33,7 +34,7 @@ func (req *Request) Handle(c *Client) interface{} {
 		if len(req.IDB64) == 0 {
 			return e.MissingParam("id")
 		}
-		exists := merkle.GlobalTree.Exists(req.IDB64)
+		exists := tree.Exists(req.IDB64)
 		res := struct{
 			Exists bool `json:"exists"`
 		}{
@@ -44,7 +45,7 @@ func (req *Request) Handle(c *Client) interface{} {
 		if len(req.IDB64) == 0 {
 			return e.MissingParam("id")
 		}
-		sig, data, hashes, err := merkle.GlobalTree.ReadFile(req.IDB64)
+		sig, data, hashes, err := tree.ReadFile(req.IDB64)
 		if err != nil {
 			return err
 		}
@@ -54,7 +55,7 @@ func (req *Request) Handle(c *Client) interface{} {
 			Validation []merkle.HashValidation `json:"validation"`
 		}{
 			string(sig),
-			b64(data),
+			string(data),
 			make([]merkle.HashValidation, 0, len(hashes)),
 		}
 		for _, hash := range hashes {
@@ -68,11 +69,7 @@ func (req *Request) Handle(c *Client) interface{} {
 		if len(req.SigB64) == 0 {
 			return e.MissingParam("signature")
 		}
-		data, err := b64d(req.DataB64)
-		if err != nil {
-			return e.BadRequest(err)
-		}
-		hashes, err := merkle.GlobalTree.WriteFile(req.IDB64, req.SigB64, data)
+		hashes, err := tree.WriteFile(req.IDB64, req.SigB64, []byte(req.DataB64))
 		if err != nil {
 			return err
 		}

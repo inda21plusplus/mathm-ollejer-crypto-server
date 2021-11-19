@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/inda21plusplus/mathm-ollejer-crypto-server/server"
+	"github.com/inda21plusplus/mathm-ollejer-crypto-server/server/crypt"
 )
 
 func main() {
@@ -22,7 +23,12 @@ func main() {
 		if err != nil {
 			fmt.Println("Error accepting connection", err)
 		}
+		clientSign, symmetricKey, err := crypt.KeyExchange(conn)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
 
-		go server.NewClient(conn).Run()
+		go server.NewClient(conn, clientSign, symmetricKey).Run()
 	}
 }
